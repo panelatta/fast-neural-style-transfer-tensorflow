@@ -33,11 +33,6 @@ def read_test_image(filename):
 #Get batches from the data set. I know there are better methods in Tensorflow to get input data, but I just read them from the prepared list
 #for simplicity.
 def read_batches(filepath, img_paths, batch_index, batch_size=4):
-	if len(img_paths) == 0:
-		for name1, name2, name3 in os.walk(filepath):
-			for x in name3 :
-				img_paths.append(name1+x)
-	
     images = []
     image_indices = range(len(img_paths))
     count = 0
@@ -63,4 +58,4 @@ def read_batches(filepath, img_paths, batch_index, batch_size=4):
 
     images_np = np.array(images).astype(np.float32)
     batch_index = batch_index + batch_size
-    return images_np, batch_index, img_paths
+    return images_np, batch_index
