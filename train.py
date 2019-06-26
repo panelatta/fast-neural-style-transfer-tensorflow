@@ -4,12 +4,13 @@ from __future__ import division
 
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
-from scipy.misc import imsave
+import scipy.misc as misc
 import numpy as np
 
 import os
 import argparse
 import yaml
+import time
 
 import model
 import reader
@@ -22,61 +23,92 @@ def build_parser():
     return args
 
 def main():
+    with tf.Graph().as_default():        
+        # Load Dataset
+        style_img_batch, _ = reader.load_image(imgarg.style_image_path, 
+                                               imgarg.batch_size, 
+                                               imgarg.image_size, 
+                                               True)
+
+        # Hold place for images
+        image = tf.placeholder(tf.float32, [None, 
+                                            imgarg.image_size, 
+                                            imgarg.image_size, 
+                                            imgarg.channel_num])
+        style_image = tf.placeholder(tf.float32, [None, 
+                                                  imgarg.image_size, 
+                                                  imgarg.image_size, 
+                                                  imgarg.channel_num])
+        
+        # Extract feature
+        _, endpoints_dict = losses.loss_model(tf.concat([image, 
+                                                         model.net_gen(image, training=True), 
+                                                         style_image], 0))
+        with tf.Session() as sess:
+            # Building Losses
+            cont_loss = losses.content_loss(endpoints_dict, imgarg.content_layers)
+            style_loss = losses.style_loss(endpoints_dict, imgarg.style_layers)
+            total_loss = imgarg.style_weight * style_loss + imgarg.content_weight * cont_loss
+
+            # Preprocess before training
+            var_for_train = slim.get_variables_to_restore(include=['net_gen'])
+            optimizer = tf.train.AdamOptimizer(imgarg.learning_rate).apply_gradients(
+                grads_and_vars=list(zip(tf.gradients(total_loss, var_for_train), var_for_train)))
+            saver = tf.train.Saver(slim.get_variables_to_restore(include=['net_gen']), max_to_keep=100)
+            restore_saver = tf.train.Saver(slim.get_variables_to_restore(include=[imgarg.loss_model]))
+        
+            sess.run([tf.global_variables_initializer(), tf.local_variables_initializer()])
+
+            # Restore vars
+            if os.path.exists(imgarg.model_path):
+                restore_saver.restore(sess, imgarg.model_path)
+
+            # Start training
+            start_time = time.time()
+            prev_time = start_time
+            for epoch in range(imgarg.epoch_num):
+                imgarg.batch_index = 0
+                iters = imgarg.data_size // imgarg.batch_size
+                for step in range(iters):
+                    step_time = time.time() - prev_time
+                    tot_time = time.time() - start_time
+                    prev_time = time.time()
+
+                    img_batch = reader.get_images(imgarg.train_image_path, img_paths)
+                    _, tot_loss, sty_loss, con_loss, = sess.run([optimizer, total_loss, style_loss, cont_loss], 
+                                                feed_dict={image: img_batch, style_image: style_img_batch})
+                    glob_step = epoch * iters + step + 1
+
+                    # Logging
+                    if step % 10 == 0:
+                        tf.logging.info('Epoch: %d, Step: %d/%d, Total time: %f sec(s), Time/Step: %f sec(s) --- %.2f%%' 
+                              % (epoch + 1, step, iters, tot_time, step_time, 100 * (glob_step / (imgarg.epoch_num * iters))))
+                        tf.logging.info('Total loss: %f, Content loss: %f, Style loss: %f'
+                              % (tot_loss, con_loss, sty_loss))
+
+                    # Save checkpoints
+                    if step % 1000 == 0:   
+                        saver.save(sess, os.path.join(imgarg.train_check_point, 'model.ckpt'), 
+                                   global_step=glob_step)
+                        tf.logging.info('Saving checkpoints %d ...' % (glob_step))
+
+            saver.save(sess, os.path.join(imgarg.train_check_point, 'model.ckpt-done'))
+            tf.logging.info('Training completed --- Epoch limit achieved.')
+
+if __name__ == '__main__':
+    tf.logging.set_verbosity(tf.logging.INFO)
+    
+    # Read arguments
     args = build_parser()
+
+    # Load in config file of style
     read_conf_file(args.conf)
 
     # Load in list of paths of dataset files
-    img_paths = [os.path.join(style_img_arg.TRAIN_IMAGE_PATH, f) for f in os.listdir(style_img_arg.TRAIN_IMAGE_PATH)
-                 if os.path.isfile(os.path.join(style_img_arg.TRAIN_IMAGE_PATH, f))]
+    img_paths = [os.path.join(imgarg.train_image_path, f) for f in os.listdir(imgarg.train_image_path)
+                 if os.path.isfile(os.path.join(imgarg.train_image_path, f))]
     img_paths = sorted(img_paths)
 
-    with tf.Graph().as_default():
-        image = tf.placeholder(tf.float32, [None, style_img_arg.IMAGE_SIZE, style_img_arg.IMAGE_SIZE, style_img_arg.CHANNEL_NUM])
-        style_image = tf.placeholder(tf.float32, [None, style_img_arg.IMAGE_SIZE, style_img_arg.IMAGE_SIZE, style_img_arg.CHANNEL_NUM])
-        output = model.net_gen(image, training=True)
-        logits, endpoints_dict = losses.loss_model(tf.concat([image, output, style_image], 0))
-        
-        cont_loss = losses.content_loss(endpoints_dict, style_img_arg.CONTENT_LAYERS)
-        style_loss = losses.style_loss(endpoints_dict, style_img_arg.STYLE_LAYERS)
-        total_loss = style_img_arg.STYLE_WEIGHT * style_loss + style_img_arg.CONTENT_WEIGHT * cont_loss
-
-        var_for_train = slim.get_variables_to_restore(include=['net_gen'])
-        grad_and_var = list(zip(tf.gradients(total_loss, var_for_train), var_for_train))
-        optimizer = tf.train.AdamOptimizer(style_img_arg.LEARNING_RATE).apply_gradients(grads_and_vars=grad_and_var)
-        saver = tf.train.Saver(slim.get_variables_to_restore(include=['net_gen']), max_to_keep=100)
-        var_to_res = slim.get_variables_to_restore(include=[style_img_arg.LOSS_MODEL])
-        restorer = tf.train.Saver(var_to_res)
-        
-        with tf.Session() as sess:
-            train_writer = tf.summary.FileWriter(style_img_arg.CHECK_POINT_PATH, sess.graph)
-
-            # Restore from pretrained model
-            sess.run(tf.global_variables_initializer())
-            sess.run(tf.local_variables_initializer())
-            restorer.restore(sess, style_img_arg.MODEL_PATH)
-
-            style_img_batch, _ = reader.load_image(style_img_arg.STYLE_IMAGE_PATH, style_img_arg.BATCH_SIZE, style_img_arg.IMAGE_SIZE, True)
-
-            for epoch in range(style_img_arg.EPOCH_NUM):
-                batch_index = 0
-                batch_loop_time = style_img_arg.DATA_SIZE // style_img_arg.BATCH_SIZE
-                for cnt in range(batch_loop_time):
-                    img_batch, batch_index = reader.read_batches(style_img_arg.TRAIN_IMAGE_PATH, 
-                                                                         img_paths, 
-                                                                         batch_index, 
-                                                                         style_img_arg.BATCH_SIZE, 
-                                                                         style_img_arg.IMAGE_SIZE)
-                    _, btc_ls, sty_ls, con_ls, sum_str = sess.run([optimizer, total_loss, style_loss, cont_loss, summary], 
-                                                                  feed_dict={image: img_batch,
-                                                                  style_image: style_img_batch})
-                    if cnt % 10 == 0:
-                        print('Epoch: %d, Batch %d of %d, Total loss: %.3f, Style loss: %.3f, Content loss: %.3f'%(epoch + 1, cnt, batch_loop_time, btc_ls, 220 * sty_ls, con_ls))
-                        train_writer.add_summary(sum_str, epoch * batch_loop_time + cnt + 1)
-                    if cnt % 1000 == 0:   
-                        saver.save(sess, os.path.join(style_img_arg.TRAIN_CHECK_POINT, 'model.ckpt'), 
-                                   global_step=epoch * batch_loop_time + cnt + 1)
-
-if __name__ == '__main__':
     main()
 
 

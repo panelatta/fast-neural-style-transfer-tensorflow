@@ -2,15 +2,14 @@
 from __future__ import division
 from __future__ import print_function
 
-import os
-
-from scipy.misc import imread, imresize
+import scipy.misc as misc
 import numpy as np
 
-#Mean pixel for all images in the set. It is provided by https://github.com/lengstrom/fast-style-transfer
-MEAN_PIXEL = np.array([[123.68, 116.779, 103.939]])
+import os
 
-class style_img_arg:
+class imgarg:
+    MEAN_PIXEL = np.array([[123.68, 116.779, 103.939]])
+    batch_index = None
     style_image_path = None
     model_path = None
     train_image_path = None
@@ -33,38 +32,35 @@ class style_img_arg:
     def __init__(self):
         pass
 
-def load_image(filename, bat_size=64, img_size=256, train=True):
-    img = imresize(imread(filename), (img_size, img_size, 3))
-
-    img_batch = []
-    if not train:
-        bat_size = 1
-    for _ in range(bat_size):
-        img_batch.append(img)
-    img_batch = np.array(img_batch).astype(np.float32)
-
-    return img_batch, img.shape
-	
+def to_ndarray(x):
+    return np.array(x).astype(np.float32)
 
 def read_conf_file(filename):
     with open(filename) as f :
         options = **f.yaml.load(f)
-    style_img_arg.__dict__.update(options)
-    print('Style config file ' + filename + ' loaded.')
+    imgarg.__dict__.update(options)
 
-#Get batches from the data set.
-def read_batches(filepath, img_paths, bat_idx, bat_size=4, img_size=256):
-    img_list = []
-    for x in img_paths[bat_idx: bat_idx + bat_size]:
-        img = imresize(imread(x), (img_size, img_size, style_img_arg.CHANNEL_NUM))
+def load_image(filename, bat_size=64, img_size=256, train=True):
+    img = misc.imresize(misc.imread(filename), (img_size, img_size, imgarg.channel_num))
 
-        # Substracting mean value of each channel from input images
-        for channels in range(style_img_arg.CHANNEL_NUM):
-            img[:, :, channels] -= MEAN_PIXEL[0, channels]
+    batch = []
+    if not train:
+        bat_size = 1
+    for _ in range(bat_size):
+        img_batch.append(img)
 
-        img_list.append(img)
+    return to_ndarray(batch), img.shape
 
-    images = np.array(images).astype(np.float32)
-    bat_idx += bat_size
+def get_images(filepath, img_paths):
+    batch = []
+    bat_index = imgarg.batch_index
+    bat_size = imgarg.batch_size
+    img_size = imgarg.image_size
 
-    return images, bat_idx
+    for index in range(bat_index, bat_index + bat_size):
+        img = misc.imresize(misc.imread(img_paths[index]), (img_size, img_size, imgarg.channel_num))
+        for channels in range(imgarg.channel_num):
+            img[:, :, channels] -= imgarg.MEAN_PIXEL[0, channels]
+        batch.append(img)
+
+    return to_ndarray(batch), bat_index + bat_size
