@@ -1,31 +1,31 @@
-STYLE_IMAGE_PATH: styled_images/scream.jpg 
-# NAMING: "scream" 
-MODEL_PATH: model/vgg_16.ckpt  
-TRAIN_IMAGE_PATH: train2014/
+style_image_path: styled_images/scream.jpg 
+# naming: "scream" 
+model_path: model/vgg_16.ckpt  
+train_image_path: train2014/
 
-CONTENT_WEIGHT: 1.0  
-STYLE_WEIGHT: 250.0  
-# TV_WEIGHT: 0.0   
+content_weight: 1.0  
+style_weight: 250.0  
+# tv_weight: 0.0   
 
-IMAGE_SIZE: 256
-BATCH_SIZE: 4
-EPOCH_NUM: 1
+image_size: 256
+batch_size: 4
+epoch_num: 1
 
-# LOSS_MODEL: "vgg_16"
-CONTENT_LAYERS:  
+# loss_model: "vgg_16"
+content_layers:  
   - "vgg_16/conv3/conv3_3"
-STYLE_LAYERS:  
+style_layers:  
   - "vgg_16/conv1/conv1_2"
   - "vgg_16/conv2/conv2_2"
   - "vgg_16/conv3/conv3_3"
   - "vgg_16/conv4/conv4_3"
 # checkpoint_exclude_scopes: "vgg_16/fc"  
 
-CHANNEL_NUM: 3
-TRAIN_CHECK_POINT: model/trained_model/scream/
-TEST_IMAGE_PATH: test/test.jpg
-IMAGE_SAVE_PATH: image/
-CHECK_POINT_PATH: log/
-LEARNING_RATE: 1e-3
-DATA_SIZE: 82783
+channel_num: 3
+train_check_point: model/trained_model/scream/
+test_image_path: test/test.jpg
+image_save_path: image/
+check_point_path: log/
+learning_rate: 1e-3
+data_size: 82783
   
