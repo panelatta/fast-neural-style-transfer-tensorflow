@@ -1,61 +1,59 @@
-## tensorflow-slim-fast-style-transfer
-Implement of fast-style-transfer by Tensorflow-slim(Easy to read)
-## Requirements
-Tensorflow(>=1.4)+slim+python(2.7)
-## Dataset
-COCO2014 http://images.cocodataset.org/zips/train2014.zip
+## Fast Neural Style Transfer Tensorflow
 
-You need unzip it, and place all images in 'train2014' folder.
+A tensorflow implement of [Perceptual Losses for Real-Time Style Transfer and Super-Resolution](https://arxiv.org/abs/1603.08155) , referenced [OlavHN/fast-neural-style](https://github.com/OlavHN/fast-neural-style), [hzy46/fast-neural-style-tensorflow](https://github.com/hzy46/fast-neural-style-tensorflow) and [lengstrom/fast-style-transfer](https://github.com/lengstrom/fast-style-transfer).
 
-All style images are provided by https://github.com/lengstrom/fast-style-transfer
-## Parameters
-All the parameters are the same with paper Perceptual Losses for Real-Time Style Transfer and Super-Resolution
-  
-STYLE_WEIGHT and CONTENT_WEIGHT are provided by https://github.com/hzy46/fast-neural-style-tensorflow 
-## Usage
-Please download slim vgg_16 check point from http://download.tensorflow.org/models/vgg_16_2016_08_28.tar.gz
+### Requirement
 
-Then untar it and place it in 'model' folder.
-```Bash
-sudo ./convert_images_to_list.sh train2014/
+- Python 2.7.x
+- Tensorflow >= 1.4
+
+Also make sure that you've installed numpy, scipy and pyyaml:
+
+```python
+pip install numpy
+pip install scipy
+pip install pyyaml
 ```
-to generate train images addresses list.
-```Python
-python train.py
+
+The code works well on Ubuntu 18.04, Python 2.7.15 and tensorflow 1.13.1.
+
+### Usage
+
+You should download [Pretrained VGG-16 Model](http://download.tensorflow.org/models/vgg_16_2016_08_28.tar.gz) of tensorflow-slim and unpack it to folder `model/`.
+
+```bash
+cd <this repo>/model
+sudo wget -c http://download.tensorflow.org/models/vgg_16_2016_08_28.tar.gz
+sudo tar -xzvf vgg_16_2016_08_28.tar.gz
+sudo rm vgg_16_2016_08_28.tar.gz
 ```
-It trains 'wave' style by default, you can change STYLE_IMAGE_PATH, TRAIN_CHECK_POINT and STYLE_WEIGHT in train.py to train other styles.
 
-You can use 
-```Bash
-Tensorboard --logdir=.
+Then, you should download [COCO2014 Dataset](http://msvocds.blob.core.windows.net/coco2014/train2014.zip) , unpack it, and create a symbol link to the folder `train2014/` .
+
+```bash
+sudo wget -c http://msvocds.blob.core.windows.net/coco2014/train2014.zip
+sudo unzip train2014.zip
+(If you've not installed unzip, use 'sudo apt install unzip' to install it)
+cd <this repo>
+sudo ln -s <path to train2014/> train2014
 ```
-in log folder to see more training details.
 
-```Python
-python test.py
+The repo has included a pretrained `wave` model checkpoint in `model/trained_model/wave/model.ckpt-20001`. To transfer images with a trained model, type that
+
+```bash
+cd <this repo>
+python eval.py -c <path to source image> -m <path to model> -s <path to save result>
 ```
-for testing.
 
-Model checkpoint I have trained: https://drive.google.com/drive/folders/1akw7PY6yF6A9hG_Au-j2U8-cDFfZ5uj8?usp=sharing
+Default value of the para `-m` is defined as the pretrained model, so you can omit it.
 
-Please place style folders in 'model/trained_model/', and modify MODEL_PATH in test.py to get your own style images. For example, if you want to get 'scream' style images, please place 'scream' folder in 'model/trained_model/', and change MODEL_PATH in test.py into 'model/trained_model/scream/model.ckpt-20001'. Then place your test.jpg in 'test' folder and python test.py.
-## Results
-![](https://github.com/2012013382/tensorflow-slim-fast-style-transfer/blob/master/test/style_image.jpg)
-![](https://github.com/2012013382/tensorflow-slim-fast-style-transfer/blob/master/test/good_result.jpg)
-![](https://github.com/2012013382/tensorflow-slim-fast-style-transfer/blob/master/test/good_result2.jpg)
+To get more pretrained model you can download them [here](https://drive.google.com/open?id=1O8Hicm5PCLPeuS0OHCdIe7HSLOjaZBWG) .
 
-Results with different steps.
+The folder `conf/` has included some defined config file of different styles. As an example, to train the model `cubist` , type that
 
+```bash
+cd <this repo>
+python train.py -c conf/cubist.yml
+```
 
-![](https://github.com/2012013382/tensorflow-slim-fast-style-transfer/blob/master/test/scream_bown_result.jpg)
-![](https://github.com/2012013382/tensorflow-slim-fast-style-transfer/blob/master/test/scream_building.jpg)
-![](https://github.com/2012013382/tensorflow-slim-fast-style-transfer/blob/master/test/candy_bown.jpg)
-![](https://github.com/2012013382/tensorflow-slim-fast-style-transfer/blob/master/test/candy_building.jpg)
-![](https://github.com/2012013382/tensorflow-slim-fast-style-transfer/blob/master/test/starry_bown.jpg)
-![](https://github.com/2012013382/tensorflow-slim-fast-style-transfer/blob/master/test/starry_building.jpg)
-![](https://github.com/2012013382/tensorflow-slim-fast-style-transfer/blob/master/test/wave_bown.jpg)
-![](https://github.com/2012013382/tensorflow-slim-fast-style-transfer/blob/master/test/wave_building.jpg)
-## Reference
-https://github.com/hzy46/fast-neural-style-tensorflow
-
-https://github.com/lengstrom/fast-style-transfer
+Then checkpoints could be found at `model/trained_model/<folder of your style>` .
